@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Catch the Mango</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;font-family:system-ui,"Segoe UI",Roboto,sans-serif;background:#8fd3f7;touch-action:none;-webkit-user-select:none;user-select:none}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+#hud{position:fixed;top:10px;left:10px;right:10px;display:none;z-index:5;pointer-events:none;color:#fff;font-weight:800;text-shadow:0 2px 4px rgba(0,0,0,.45)}
+#score,#best{font-size:20px;line-height:1.3}
+#coins{font-size:17px;margin-top:2px;color:#ffe066}
+#lives{position:absolute;left:50%;transform:translateX(-50%);top:0;font-size:22px;white-space:nowrap}
+.life{display:inline-block;margin:0 2px;transition:opacity .3s}
+.life.lost{opacity:.2;filter:grayscale(1)}
+#menuBtn{position:absolute;right:0;top:0;pointer-events:auto}
+#invBtn{position:absolute;right:76px;top:0;pointer-events:auto}
+.pill{background:rgba(0,0,0,.4);color:#fff;border:0;border-radius:20px;padding:7px 12px;font-size:14px;font-weight:700;cursor:pointer}
+.pill.active{background:#ff9800}
+#bottomBar{position:fixed;bottom:12px;right:12px;z-index:12;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:90vw}
+.screen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(20,40,20,.45);z-index:10;padding:16px}
+.screen.show{display:flex}
+.card{background:#fffbea;border-radius:18px;padding:22px;width:min(92vw,380px);max-height:90vh;overflow:auto;box-shadow:0 10px 30px rgba(0,0,0,.35);text-align:center;color:#3b2a0a}
+.card h1{font-size:28px;margin-bottom:4px}
+.credit{font-size:14px;font-weight:900;letter-spacing:2px;color:#c75b00;margin-bottom:10px}
+.card p{margin:6px 0;color:#6b5020}
+input{width:100%;padding:12px;font-size:18px;border:2px solid #f5a623;border-radius:10px;margin:12px 0 6px;text-align:center;outline:none}
+.btn{background:#ff9800;color:#fff;border:0;border-radius:12px;padding:12px 20px;font-size:18px;font-weight:700;cursor:pointer;margin:6px}
+.btn:disabled{background:#c9b99a;cursor:not-allowed}
+.btn.alt{background:#fff;color:#c75b00;border:2px solid #ff9800}
+.btn.link{background:none;color:#7a5a20;text-decoration:underline;font-size:15px;font-weight:600}
+.icon{background:#fff;border:2px solid #ff9800;border-radius:14px;width:58px;height:58px;font-size:26px;cursor:pointer;margin:6px}
+.err{color:#c62828;min-height:20px;font-weight:600}
+.ok{color:#2e7d32;min-height:20px;font-weight:700}
+.big{font-size:44px;font-weight:900;color:#e65100;margin:6px 0}
+.tag{display:none;background:#ffd700;color:#5d4200;font-weight:900;border-radius:10px;padding:6px 12px;margin:8px auto;width:fit-content;font-size:20px;box-shadow:0 0 14px #ffd700}
+.coinline{font-weight:800;color:#8a5a00;font-size:17px;margin-top:6px}
+.shopRow{background:#fff3d6;border-radius:12px;padding:12px;margin:10px 0;text-align:left}
+.shopRow b{font-size:16px}
+.shopRow small{display:block;color:#6b5020;margin-top:4px}
+.shopRow .btn{float:right;margin:0;padding:8px 14px;font-size:15px}
+.shopRow::after{content:"";display:block;clear:both}
+table{width:100%;border-collapse:collapse;margin-top:10px;font-size:15px}
+th,td{padding:7px 4px;border-bottom:1px solid #f0dca8;text-align:left}
+th:nth-child(n+3),td:nth-child(n+3){text-align:right}
+tr.me{background:#ffe0a3;font-weight:700}
+.live{color:#c62828;font-weight:700;font-size:13px}
+.sticker{display:inline-block;background:#fff;border:3px dashed #ff9800;border-radius:12px;padding:6px 14px;font-weight:900;letter-spacing:2px;color:#c75b00;margin-bottom:6px}
+.idxGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px;text-align:left}
+.idxCell{border:2px solid #ccc;border-radius:10px;padding:6px;font-size:12px;min-height:56px;background:#eee}
+.idxCell.has{background:#fff}
+.idxName{font-weight:800;color:#999}
+.idxCell.has .idxName{color:#3b2a0a}
+.idxTier{font-weight:700;font-size:11px}
+.invItem{display:block;width:100%;text-align:left;background:#fff3d6;border:2px solid #ccc;border-radius:12px;padding:10px;margin:6px 0;font-size:16px;font-weight:700;cursor:pointer;color:#3b2a0a}
+.invItem small{display:block;font-weight:600;font-size:12px;color:#6b5020;margin-top:2px}
+.invList{max-height:50vh;overflow:auto;margin-top:8px}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="hud">
+  <div id="score">Score: 0</div>
+  <div id="best">Best: 0</div>
+  <div id="coins">🪙 Balance: 0</div>
+  <div id="lives"><span class="life">🥭</span><span class="life">🥭</span><span class="life">🥭</span></div>
+  <button id="invBtn" class="pill">🎒</button>
+  <button id="menuBtn" class="pill">Menu</button>
+</div>
+
+<div id="bottomBar">
+  <button id="musicOn" class="pill active">🎵 Music On</button>
+  <button id="musicOff" class="pill">🎵 Music Off</button>
+  <button id="mute" class="pill">🔊 Sound</button>
+</div>
+
+<!-- Intro screen -->
+<div id="intro" class="screen show">
+  <div class="card">
+    <h1>🥭 Catch the Mango</h1>
+    <div class="credit">YASEEN IS PROJET</div>
+    <p>Catch mangoes and eggs in your basket. Gold, diamond and ruby mangoes are worth more!</p>
+    <p class="coinline" id="introCount">📖 Collected: 0 / 107</p>
+    <button class="btn" id="startBtn" style="font-size:22px;padding:14px 40px">▶ Start</button>
+    <div>
+      <button class="icon" id="shopIcon" title="Shop">🛒</button>
+      <button class="icon" id="introLb" title="Leaderboard">🏆</button>
+      <button class="icon" id="indexIcon" title="Mango index">📖</button>
+      <button class="icon" id="introInv" title="Inventory">🎒</button>
+    </div>
+  </div>
+</div>
+
+<!-- Name screen -->
+<div id="login" class="screen">
+  <div class="card">
+    <h1>🥭 Enter your name</h1>
+    <p>Your score, coins and upgrades are saved under this name.</p>
+    <input id="nameInput" maxlength="16" placeholder="Your name" autocomplete="off">
+    <div class="err" id="err"></div>
+    <button class="btn" id="joinBtn">Join</button><br>
+    <button class="btn link" id="backIntro">← Back</button>
+  </div>
+</div>
+
+<!-- Inventory -->
+<div id="invModal" class="screen">
+  <div class="card">
+    <h1>🎒 Inventory</h1>
+    <p id="invSummary"></p>
+    <div class="invList" id="invList"></div>
+    <div class="err" id="invMsg"></div>
+    <button class="btn alt" id="invBack">Back</button>
+  </div>
+</div>
+
+<!-- Code popup (opens when you double-tap the basket during a game) -->
+<div id="codeModal" class="screen">
+  <div class="card">
+    <h1>🏷️ Enter code</h1>
+    <p>Double-tap the basket during a game to open this box.</p>
+    <div class="sticker">CODE</div>
+    <input id="codeInput" maxlength="16" placeholder="Type code" autocomplete="off">
+    <div class="err" id="codeMsg"></div>
+    <button class="btn" id="codeSubmit">Redeem</button><br>
+    <button class="btn alt" id="codeClose">Close</button>
+  </div>
+</div>
+
+<!-- Mango index -->
+<div id="indexModal" class="screen">
+  <div class="card">
+    <h1>📖 Mango Index</h1>
+    <div class="coinline">Collected: <span id="idxCount">0</span> / 107</div>
+    <div class="idxGrid" id="idxGrid"></div>
+    <button class="btn alt" id="indexBack" style="margin-top:12px">Back</button>
+  </div>
+</div>
+
+<!-- Shop screen -->
+<div id="shop" class="screen">
+  <div class="card">
+    <h1>🛒 Shop</h1>
+    <div class="coinline">🪙 Balance: <span id="coinsNow">0</span></div>
+    <div class="shopRow">
+      <b>🍀 Luck: x<span id="luckNow">1.0</span></b>
+      <button class="btn" id="buyLuck">Buy 100</button>
+      <small>Makes gold, diamond, ruby and rare mangoes more likely. Next: x<span id="luckNext">1.1</span>, cost <span id="luckCost">100</span>. Max x100.</small>
+    </div>
+    <div class="shopRow">
+      <b>💰 Coin bonus: x<span id="coinNow">1.0</span></b>
+      <button class="btn" id="buyCoin">Buy 100</button>
+      <small>Multiplies the coins you earn each game. Next: x<span id="coinNext">1.1</span>, cost <span id="coinCost">100</span>. Max x100.</small>
+    </div>
+    <div class="shopRow">
+      <b>👑 Crown: <span id="crownCount">0</span></b>
+      <button class="btn" id="useCrown">Use</button>
+      <small id="crownNote">Sets Luck and Coin bonus to at least 10x.</small>
+    </div>
+    <div class="err" id="shopMsg"></div>
+    <button class="btn alt" id="shopBack">Back</button>
+  </div>
+</div>
+
+<!-- Game over screen -->
+<div id="over" class="screen">
+  <div class="card">
+    <h1>Game over!</h1>
+    <p id="overName"></p>
+    <div class="big" id="finalScore">0</div>
+    <div class="tag" id="newBestTag">New best! 🏆</div>
+    <div class="coinline" id="coinEarned"></div>
+    <p id="overStats"></p>
+    <button class="btn" id="againBtn">Play again</button><br>
+    <button class="btn alt" id="overShop">🛒 Shop</button>
+    <button class="btn alt" id="overLbBtn">🏆 Leaderboard</button><br>
+    <button class="btn link" id="changeNameBtn">Change name</button>
+  </div>
+</div>
+
+<!-- Leaderboard screen -->
+<div id="board" class="screen">
+  <div class="card">
+    <h1>🏆 Leaderboard</h1>
+    <p class="live">● Live</p>
+    <table>
+      <thead><tr><th>#</th><th>Name</th><th>Best</th><th>Played</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <button class="btn" id="closeBoardBtn" style="margin-top:14px">Close</button>
+  </div>
+</div>
+
+<script>
+(() => {
+const KEY = 'catchTheMango.players.v1';
+const LAST = 'catchTheMango.last';
+const $ = id => document.getElementById(id);
+const cv = $('c'), ctx = cv.getContext('2d');
+
+const MANGO_VALUE = { n: 1, g: 5, d: 10, r: 20 };
+const BASE_CHANCE = { r: 0.015, d: 0.04, g: 0.10 };
+const COLLECT_CHANCE = 0.08;   // falling mango that is a collectible (goes to inventory)
+const EGG_CHANCE = 0.05;       // falling egg (goes to inventory)
+const NEW_BEST_BONUS = 20;
+const BASKET_CAP = 5;
+const CROWN_MULT = 10;
+const MULT_CAP = 100;
+const MAX_LV = Math.round((MULT_CAP - 1) / 0.1);
+const CODES = {
+  '0107': { coins: 2014, crown: 1 },
+  '2014': { mango: 'ADMIN' }
+};
+
+// ---------- Rarity tiers and mango names (107 total) ----------
+const TIERS = [
+  { name: 'Common', color: '#9e9e9e', w: 0.50, luck: 0.01, coin: 10, names: [
+    'Neelum','Totapuri','Kilichundan','Mulgoa','Bangalora','Malgova','Ratna','Sindhu','Rumani','Gulab Khas',
+    'Dasheri','Langra','Chausa','Kesar','Himsagar','Bombay Green','Pairi','Safeda','Badami','Suvarnarekha',
+    'Sakkarai','Peddarasam','Kalepad','Vellaikolamban','Jamadar','Fazli','Rajapuri','Bhadrawahi','Mankurad'] },
+  { name: 'Uncommon', color: '#43a047', w: 0.20, luck: 0.02, coin: 25, names: [
+    'Alphonso','Banganapalli','Imam Pasand','Himayuddin','Cole','Sundari','Mallika','Amrapali','Ratnagiri','Kent',
+    'Tommy Atkins','Haden','Keitt','Palmer','Irwin','Ataulfo','Kesar Gold','Nam Doc Mai','Carabao','Honey Gold'] },
+  { name: 'Rare', color: '#1e88e5', w: 0.12, luck: 0.05, coin: 60, names: [
+    'Golden Dew','Silver Thread','Coconut Sunset','Backwater Gold','Western Ghat Pearl','Munnar Blush','Kochi Moon',
+    'Wayanad Amber','Thekkady Honey','Alleppey Glow','Kumarakom Star','Vembanad Shine','Periyar Velvet',
+    'Kozhikode Jewel','Attapadi Ember'] },
+  { name: 'Epic', color: '#8e24aa', w: 0.08, luck: 0.10, coin: 150, names: [
+    'Thunder Mango','Storm Kesari','Velvet Lightning','Ember Totapuri','Frost Alphonso','Shadow Neelum',
+    'Coral Dasheri','Sun Crown Langra','Phoenix Chausa','Monsoon Rubyfall'] },
+  { name: 'Legendary', color: '#ff8f00', w: 0.05, luck: 0.20, coin: 400, names: [
+    'Emerald Dragon','Golden Tiger','Ancient Banyan','Lotus Empress','Sapphire Sovereign','Obsidian Hawk',
+    'Crystal Oracle','Moonlit Serpent'] },
+  { name: 'Mythic', color: '#d81b60', w: 0.03, luck: 0.35, coin: 900, names: [
+    'Titan Mango','Phoenix Star','Eclipse Nectar','Starfall Kesar','Celestial Alphonso','Dawn Titan'] },
+  { name: 'Cosmic', color: '#3949ab', w: 0.015, luck: 0.50, coin: 2000, names: [
+    'Nebula Mango','Orion Gold','Quasar Jam','Galaxy Thorn','Pulsar Pearl'] },
+  { name: 'Secret', color: '#00897b', w: 0.008, luck: 0.75, coin: 4000, names: [
+    'Whisper Mango','Hidden Vault','Shadow Garden','Silent Oath'] },
+  { name: 'Eternal', color: '#00acc1', w: 0.004, luck: 1.0, coin: 8000, names: [
+    'Eternal Bloom','Timeless Gold','Forever Kesar'] },
+  { name: 'Divine', color: '#f9a825', w: 0.002, luck: 1.5, coin: 15000, names: [
+    'Divine Ray','Holy Alphonso'] },
+  { name: 'Ruby Rare', color: '#e0115f', w: 0.001, luck: 2.0, coin: 25000, names: ['Ruby Sunrise'] },
+  { name: 'Godly', color: '#ffb300', w: 0.0006, luck: 3.0, coin: 50000, names: ['Godly Titan'] },
+  { name: 'Super Divine', color: '#ff6f00', w: 0.0004, luck: 5.0, coin: 100000, names: ['Super Divine Gold'] },
+  { name: 'Ruby Divine', color: '#ff1744', w: 0.0002, luck: 8.0, coin: 200000, names: ['Ruby Divine Crown'] },
+  { name: 'Admin', color: '#d500f9', w: 0.0001, luck: 15.0, coin: 500000, names: ['Admin Mango'] }
+];
+
+const MANGOES = [];
+const TIER_IDS = TIERS.map(() => []);
+TIERS.forEach((t, ti) => t.names.forEach(n => {
+  const id = MANGOES.length;
+  MANGOES.push({ id, name: n, tier: ti });
+  TIER_IDS[ti].push(id);
+}));
+const ADMIN_ID = TIER_IDS[TIERS.length - 1][0];
+
+let W = 0, H = 0, DPR = 1;
+let groundY, basketY, basketH, basketW, mangoR;
+let treeX, canopyCY, canopyRX, canopyRY;
+let muted = false, AC = null;
+let currentKey = null, currentName = '', sessionBestBefore = 0;
+let boardFrom = 'intro', shopFrom = 'intro', indexFrom = 'intro', invFrom = 'intro', boardTimer = null;
+let state = null;
+let keys = { l: false, r: false };
+let dragging = false, targetX = null;
+let lastBasketTap = 0;
+let lastT = performance.now(), cloudOff = 0;
+
+// ---------- Scenery (fractions, so it survives resizing) ----------
+const leaves = [];
+const LEAF_COLORS = ['#1b5e20', '#2e7d32', '#388e3c', '#43a047'];
+while (leaves.length < 90) {
+  const a = Math.random() * 2 - 1, b = Math.random() * 2 - 1;
+  if (a * a + b * b <= 1) leaves.push({ a, b, r: 0.18 + Math.random() * 0.16, c: LEAF_COLORS[Math.floor(Math.random() * 4)] });
+}
+const treeFruit = [];
+while (treeFruit.length < 7) treeFruit.push({ a: Math.random() * 1.4 - 0.7, b: Math.random() * 1.2 - 0.2 });
+const grass = [];
+for (let i = 0; i < 200; i++) grass.push({ gx: Math.random(), h: 8 + Math.random() * 18, lean: Math.random() * 10 - 5, c: Math.random() < 0.5 ? '#43a047' : '#66bb6a' });
+const clouds = [];
+for (let i = 0; i < 5; i++) clouds.push({ cx: Math.random(), cy: 0.03 + Math.random() * 0.17, s: 0.6 + Math.random() * 0.6, spd: 0.5 + Math.random() * 0.8 });
+
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = innerWidth; H = innerHeight;
+  cv.width = W * DPR; cv.height = H * DPR;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  groundY = H * 0.86;
+  basketH = Math.max(30, H * 0.05);
+  basketW = Math.max(80, Math.min(W * 0.22, 160));
+  basketY = groundY - basketH - H * 0.02;
+  mangoR = Math.max(9, Math.min(W, H) * 0.022);
+  treeX = W * 0.34;
+  canopyCY = H * 0.2;
+  canopyRX = Math.min(W * 0.38, H * 0.42);
+  canopyRY = H * 0.13;
+  if (state) state.bx = Math.max(basketW / 2, Math.min(W - basketW / 2, state.bx));
+}
+
+// ---------- Sound effects ----------
+function ac() {
+  if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+  if (AC.state === 'suspended') AC.resume();
+  return AC;
+}
+function tone(freq, dur, type, vol, slideTo, delay = 0) {
+  if (muted) return;
+  try {
+    const c = ac(), t = c.currentTime + delay;
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, t);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.015);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(c.destination);
+    o.start(t); o.stop(t + dur + 0.05);
+  } catch (e) {}
+}
+const sfxPop = () => tone(500, 0.12, 'sine', 0.3, 1100);
+const sfxThud = () => tone(150, 0.25, 'sine', 0.6, 45);
+const sfxSparkle = () => { tone(1046, 0.12, 'triangle', 0.22); tone(1568, 0.2, 'triangle', 0.22, null, 0.07); };
+const sfxRare = () => { tone(784, 0.1, 'triangle', 0.25); tone(1175, 0.1, 'triangle', 0.25, null, 0.08); tone(1568, 0.25, 'triangle', 0.25, null, 0.16); };
+function sfxGameOver() {
+  const notes = [[523, 0.14], [659, 0.14], [784, 0.14], [659, 0.14], [784, 0.28], [659, 0.14], [523, 0.5]];
+  let d = 0;
+  for (const [f, l] of notes) { tone(f, l + 0.05, 'triangle', 0.3, null, d); d += l; }
+}
+
+// ---------- Peaceful looping background music ----------
+let mGain = null, mTimer = null, mStep = 0, mNext = 0, musicOn = true;
+const EIGHTH = 60 / 76 / 2;
+const CHORDS = [[60, 64, 67], [57, 60, 64], [53, 57, 60], [55, 59, 62]];
+const PATTERN = [0, 1, 2, 4, 3, 2, 1, 2];
+const MUSIC_VOL = 1.0;
+const mf = m => 440 * Math.pow(2, (m - 69) / 12);
+
+function musicNote(freq, when, dur, vol, type) {
+  const c = ac();
+  const o = c.createOscillator(), g = c.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(0.0001, when);
+  g.gain.exponentialRampToValueAtTime(vol, when + 0.05);
+  g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+  o.connect(g); g.connect(mGain);
+  o.start(when); o.stop(when + dur + 0.05);
+}
+function scheduleMusic() {
+  const c = ac();
+  if (mNext < c.currentTime) mNext = c.currentTime + 0.05;
+  while (mNext < c.currentTime + 0.4) {
+    const chord = CHORDS[Math.floor(mStep / 8) % CHORDS.length];
+    const pos = mStep % 8;
+    if (pos === 0) {
+      for (const m of chord) musicNote(mf(m - 12), mNext, EIGHTH * 8, 0.07, 'sine');
+    }
+    const i = PATTERN[pos];
+    const m = chord[i % 3] + 12 * Math.floor(i / 3);
+    musicNote(mf(m), mNext, EIGHTH * 1.7, 0.14, 'triangle');
+    mNext += EIGHTH;
+    mStep++;
+  }
+}
+function musicStart() {
+  try {
+    const c = ac();
+    if (!mGain) {
+      mGain = c.createGain();
+      mGain.gain.value = musicOn ? MUSIC_VOL : 0;
+      mGain.connect(c.destination);
+      mNext = c.currentTime + 0.1;
+      mTimer = setInterval(scheduleMusic, 100);
+    } else {
+      mGain.gain.setTargetAtTime(musicOn ? MUSIC_VOL : 0, c.currentTime, 0.1);
+    }
+  } catch (e) {}
+}
+function setMusic(on) {
+  musicOn = on;
+  $('musicOn').classList.toggle('active', on);
+  $('musicOff').classList.toggle('active', !on);
+  if (on) musicStart();
+  else if (mGain) { try { mGain.gain.setTargetAtTime(0, ac().currentTime, 0.1); } catch (e) {} }
+}
+
+// ---------- Storage ----------
+function loadData() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; } }
+function saveData(d) { try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) {} }
+function getRec(data, key, name) {
+  if (!data[key]) data[key] = { name, best: 0, plays: 0, coins: 0, luckLv: 0, coinLv: 0, luckBonus: 0, crowns: 0, crownOn: false, redeemed: [], owned: [], mangoInv: [], eggs: 0 };
+  const r = data[key];
+  if (r.pending) { r.mangoInv = (r.mangoInv || []).concat(r.pending); delete r.pending; }
+  if (!r.owned) r.owned = [];
+  if (!r.mangoInv) r.mangoInv = [];
+  if (!r.eggs) r.eggs = 0;
+  if (name) r.name = name;
+  return r;
+}
+function setPlayer(name) {
+  currentName = name;
+  currentKey = name.toLowerCase();
+}
+function setPlayerFromLast() {
+  if (currentKey) return true;
+  try {
+    const n = localStorage.getItem(LAST);
+    if (n) { setPlayer(n); return true; }
+  } catch (e) {}
+  return false;
+}
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const upgradeCost = lv => 100 * (lv + 1);
+const fmt = v => (Math.round(v * 10) / 10).toFixed(1);
+
+// Luck: upgrades + bonus from used mangoes. Coin: upgrades only. The crown sets at least x10.
+function rawLuck(r) { return 1 + 0.1 * (r.luckLv || 0) + (r.luckBonus || 0); }
+function rawCoin(r) { return 1 + 0.1 * (r.coinLv || 0); }
+function mults(r) {
+  const floor = r.crownOn ? CROWN_MULT : 1;
+  return {
+    luck: Math.min(MULT_CAP, Math.max(floor, rawLuck(r))),
+    coin: Math.min(MULT_CAP, Math.max(floor, rawCoin(r)))
+  };
+}
+
+// ---------- UI helpers ----------
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('show', s.id === id));
+}
+function setMsg(id, text, ok) {
+  const e = $(id);
+  e.className = ok ? 'ok' : 'err';
+  e.textContent = text;
+}
+function updateHud() {
+  const s = state;
+  if (!s) return;
+  $('score').textContent = 'Score: ' + s.score;
+  $('best').textContent = 'Best: ' + Math.max(sessionBestBefore, s.score);
+  const r = getRec(loadData(), currentKey, currentName);
+  $('coins').textContent = '🪙 Balance: ' + (r.coins || 0);
+  document.querySelectorAll('.life').forEach((el, i) => el.classList.toggle('lost', i < s.missed));
+}
+
+// ---------- Intro ----------
+function refreshIntro() {
+  let owned = 0;
+  if (setPlayerFromLast()) {
+    owned = getRec(loadData(), currentKey, currentName).owned.length;
+  }
+  $('introCount').textContent = `📖 Collected: ${owned} / ${MANGOES.length}`;
+}
+function showIntro() {
+  state = null;
+  $('hud').style.display = 'none';
+  show('intro');
+  refreshIntro();
+}
+
+// ---------- Inventory ----------
+function openInventory(from) {
+  if (from === 'game' && state && state.running) {
+    state.paused = true;
+    keys.l = keys.r = false;
+    dragging = false; targetX = null;
+  } else if (!currentKey) {
+    setPlayerFromLast();
+  }
+  invFrom = from;
+  setMsg('invMsg', '', true);
+  renderInventory();
+  show('invModal');
+}
+function closeInventory() {
+  if (invFrom === 'game' && state && state.running) {
+    state.paused = false;
+    keys.l = keys.r = false;
+    show('');
+    updateHud();
+  } else {
+    showIntro();
+  }
+}
+function renderInventory() {
+  const r = currentKey ? getRec(loadData(), currentKey, currentName) : { mangoInv: [], eggs: 0, owned: [] };
+  const counts = {};
+  for (const id of r.mangoInv) counts[id] = (counts[id] || 0) + 1;
+  const ids = Object.keys(counts).map(Number).sort((a, b) => MANGOES[b].tier - MANGOES[a].tier || a - b);
+  let html = '';
+  if (r.eggs > 0) {
+    html += `<button class="invItem" data-egg="1">🥚 Egg ×${r.eggs}<small>Tap to hatch a mango</small></button>`;
+  }
+  for (const id of ids) {
+    const m = MANGOES[id], T = TIERS[m.tier];
+    const label = T.color === '#9e9e9e' ? '#757575' : T.color;
+    html += `<button class="invItem" data-mango="${id}" style="border-color:${T.color}">` +
+      `${esc(m.name)} ×${counts[id]}<small style="color:${label}">${T.name} · Tap to use</small></button>`;
+  }
+  if (!html) html = '<p>Your inventory is empty.</p>';
+  $('invList').innerHTML = html;
+  $('invSummary').textContent = `Mangoes: ${r.mangoInv.length} · Eggs: ${r.eggs} · Index: ${r.owned.length} / ${MANGOES.length}`;
+}
+function useMango(id) {
+  const data = loadData();
+  const r = getRec(data, currentKey, currentName);
+  const idx = r.mangoInv.indexOf(id);
+  if (idx < 0) return;
+  r.mangoInv.splice(idx, 1);
+  const T = TIERS[MANGOES[id].tier];
+  const isNew = !r.owned.includes(id);
+  if (isNew) r.owned.push(id);
+  r.luckBonus = (r.luckBonus || 0) + T.luck;
+  r.coins = (r.coins || 0) + T.coin;
+  saveData(data);
+  setMsg('invMsg', `Used ${MANGOES[id].name}: +${T.luck.toFixed(2)} 🍀 Luck, +${T.coin} 🪙` + (isNew ? ' · added to index' : ''), true);
+  renderInventory();
+}
+function hatchEgg() {
+  const data = loadData();
+  const r = getRec(data, currentKey, currentName);
+  if (r.eggs <= 0) return;
+  r.eggs--;
+  const tier = rollTier(mults(r).luck);
+  const ids = TIER_IDS[tier];
+  const id = ids[Math.floor(Math.random() * ids.length)];
+  r.mangoInv.push(id);
+  saveData(data);
+  setMsg('invMsg', `Hatched: ${MANGOES[id].name} (${TIERS[tier].name})`, true);
+  renderInventory();
+}
+function addToInventory(kind, id) {
+  const data = loadData();
+  const r = getRec(data, currentKey, currentName);
+  if (kind === 'egg') r.eggs++;
+  else r.mangoInv.push(id);
+  saveData(data);
+}
+
+// ---------- Mango index ----------
+function openIndex(from) {
+  indexFrom = from;
+  const r = setPlayerFromLast() ? getRec(loadData(), currentKey, currentName) : { owned: [] };
+  const owned = new Set(r.owned);
+  $('idxCount').textContent = owned.size;
+  $('idxGrid').innerHTML = MANGOES.map(m => {
+    const T = TIERS[m.tier], has = owned.has(m.id);
+    const label = T.color === '#9e9e9e' ? '#757575' : T.color;
+    return `<div class="idxCell ${has ? 'has' : ''}" style="border-color:${T.color}">` +
+      `<div class="idxName">${has ? esc(m.name) : '???'}</div>` +
+      `<div class="idxTier" style="color:${label}">${T.name}</div></div>`;
+  }).join('');
+  show('indexModal');
+}
+
+// ---------- Shop ----------
+function openShop(from) {
+  if (!setPlayerFromLast()) {
+    const typed = $('nameInput').value.trim().slice(0, 16);
+    if (!typed) { $('err').textContent = 'Enter your name to open the shop.'; show('login'); return; }
+    setPlayer(typed);
+  }
+  const data = loadData();
+  getRec(data, currentKey, currentName);
+  saveData(data);
+  shopFrom = from;
+  setMsg('shopMsg', '', true);
+  renderShop();
+  show('shop');
+}
+function renderShop() {
+  const r = getRec(loadData(), currentKey, currentName);
+  const m = mults(r);
+  const luckLv = r.luckLv || 0, coinLv = r.coinLv || 0;
+  const rl = rawLuck(r), rc = rawCoin(r);
+  const luckMax = rl >= MULT_CAP, coinMax = rc >= MULT_CAP;
+  const coins = r.coins || 0;
+  $('coinsNow').textContent = coins;
+  $('luckNow').textContent = fmt(m.luck);
+  $('luckNext').textContent = luckMax ? 'MAX' : fmt(Math.min(MULT_CAP, rl + 0.1));
+  $('luckCost').textContent = luckMax ? '-' : upgradeCost(luckLv);
+  $('coinNow').textContent = fmt(m.coin);
+  $('coinNext').textContent = coinMax ? 'MAX' : fmt(Math.min(MULT_CAP, rc + 0.1));
+  $('coinCost').textContent = coinMax ? '-' : upgradeCost(coinLv);
+  $('buyLuck').textContent = luckMax ? 'MAX' : 'Buy ' + upgradeCost(luckLv);
+  $('buyCoin').textContent = coinMax ? 'MAX' : 'Buy ' + upgradeCost(coinLv);
+  $('buyLuck').disabled = luckMax || coins < upgradeCost(luckLv);
+  $('buyCoin').disabled = coinMax || coins < upgradeCost(coinLv);
+  $('crownCount').textContent = r.crowns || 0;
+  $('useCrown').disabled = !!r.crownOn || !(r.crowns > 0);
+  $('crownNote').textContent = r.crownOn
+    ? 'Crown active: Luck and Coin bonus are at least 10x.'
+    : 'Sets Luck and Coin bonus to at least 10x.';
+}
+function buy(kind) {
+  const data = loadData();
+  const r = getRec(data, currentKey, currentName);
+  const lv = kind === 'luck' ? (r.luckLv || 0) : (r.coinLv || 0);
+  const raw = kind === 'luck' ? rawLuck(r) : rawCoin(r);
+  if (raw >= MULT_CAP) { setMsg('shopMsg', 'Max x100 reached'); return; }
+  const cost = upgradeCost(lv);
+  if ((r.coins || 0) < cost) { setMsg('shopMsg', 'Not enough coins'); return; }
+  r.coins -= cost;
+  if (kind === 'luck') r.luckLv = lv + 1; else r.coinLv = lv + 1;
+  saveData(data);
+  renderShop();
+  setMsg('shopMsg', 'Upgraded!', true);
+}
+function useCrown() {
+  const data = loadData();
+  const r = getRec(data, currentKey, currentName);
+  if (r.crownOn) { setMsg('shopMsg', 'Crown already active'); return; }
+  if (!(r.crowns > 0)) { setMsg('shopMsg', 'No crown'); return; }
+  r.crowns -= 1;
+  r.crownOn = true;
+  saveData(data);
+  renderShop();
+  setMsg('shopMsg', 'Crown active! 10x', true);
+}
+
+// ---------- Codes (popup opened by double-tapping the basket) ----------
+function openCode() {
+  if (!state || !state.running) return;
+  state.paused = true;
+  keys.l = keys.r = false;
+  dragging = false; targetX = null;
+  setMsg('codeMsg', '', true);
+  $('codeInput').value = '';
+  show('codeModal');
+}
+function closeCode() {
+  if (state) state.paused = false;
+  show('');
+}
+function redeem() {
+  const code = $('codeInput').value.trim().toUpperCase();
+  if (!code) { setMsg('codeMsg', 'Type a code first.'); return; }
+  const def = CODES[code];
+  if (!def) { setMsg('codeMsg', 'Wrong code.'); return; }
+  const data = loadData();
+  const r = getRec(data, currentKey, currentName);
+  r.redeemed = r.redeemed || [];
+  if (r.redeemed.includes(code)) { setMsg('codeMsg', 'You already used this code.'); return; }
+  if (def.mango !== undefined) {
+    const id = ADMIN_ID;
+    if (r.owned.includes(id) || r.mangoInv.includes(id)) { setMsg('codeMsg', 'You already have this mango.'); return; }
+    r.mangoInv.push(id);
+    r.redeemed.push(code);
+    saveData(data);
+    $('codeInput').value = '';
+    setMsg('codeMsg', 'Admin Mango added to your inventory.', true);
+    updateHud();
+    return;
+  }
+  r.coins = (r.coins || 0) + (def.coins || 0);
+  if (def.crown) r.crowns = (r.crowns || 0) + def.crown;
+  r.redeemed.push(code);
+  saveData(data);
+  setMsg('codeMsg', `Code accepted! +${def.coins} 🪙` + (def.crown ? ' + 👑 Crown' : ''), true);
+  $('codeInput').value = '';
+  updateHud();
+}
+
+// ---------- Leaderboard ----------
+function renderBoard() {
+  const data = loadData();
+  const arr = Object.keys(data).map(k => ({ k, name: data[k].name || k, best: data[k].best || 0, plays: data[k].plays || 0 }))
+    .sort((a, b) => b.best - a.best || b.plays - a.plays || a.name.localeCompare(b.name));
+  if (!arr.length) { $('rows').innerHTML = '<tr><td colspan="4">No players yet</td></tr>'; return; }
+  $('rows').innerHTML = arr.map((r, i) =>
+    `<tr class="${r.k === currentKey ? 'me' : ''}"><td>${i + 1}</td><td>${esc(r.name)}</td><td>${r.best}</td><td>${r.plays}</td></tr>`
+  ).join('');
+}
+function openBoard(from) {
+  boardFrom = from;
+  renderBoard();
+  show('board');
+  clearInterval(boardTimer);
+  boardTimer = setInterval(renderBoard, 1000);
+}
+function closeBoard() {
+  clearInterval(boardTimer);
+  show(boardFrom);
+}
+window.addEventListener('storage', e => {
+  if (e.key === KEY && $('board').classList.contains('show')) renderBoard();
+});
+
+// ---------- Game flow ----------
+function startGame() {
+  try { ac(); } catch (e) {}
+  if (musicOn) musicStart();
+  const data = loadData();
+  const r = getRec(data, currentKey, currentName);
+  r.plays = (r.plays || 0) + 1;
+  sessionBestBefore = r.best || 0;
+  saveData(data);
+  try { localStorage.setItem(LAST, currentName); } catch (e) {}
+
+  const m = mults(r);
+  state = {
+    running: true, paused: false, score: 0, missed: 0, level: 0, spawnT: 0.8,
+    mangoes: [], particles: [], pile: 0, bx: W / 2, beat: false,
+    luck: m.luck, coinMult: m.coin
+  };
+  keys.l = keys.r = false; targetX = null; dragging = false;
+  show('');
+  $('hud').style.display = 'block';
+  updateHud();
+}
+
+function endGame(showOver) {
+  const s = state;
+  s.running = false;
+  s.paused = false;
+  const data = loadData();
+  const rec = getRec(data, currentKey, currentName);
+  const newBest = s.score > sessionBestBefore && s.score > 0;
+  if (s.score > (rec.best || 0)) rec.best = s.score;
+  const earned = Math.floor(s.score * s.coinMult) + (newBest ? NEW_BEST_BONUS : 0);
+  rec.coins = (rec.coins || 0) + earned;
+  saveData(data);
+  $('hud').style.display = 'none';
+  keys.l = keys.r = false; dragging = false; targetX = null;
+  if (showOver) {
+    sfxGameOver();
+    $('overName').textContent = 'Player: ' + currentName;
+    $('finalScore').textContent = s.score;
+    $('newBestTag').style.display = newBest ? 'block' : 'none';
+    $('coinEarned').textContent = `+${earned} 🪙 coins (balance: ${rec.coins})`;
+    $('overStats').textContent = `Best: ${rec.best} · Games played: ${rec.plays}`;
+    show('over');
+  }
+}
+
+function showLogin() {
+  state = null;
+  $('hud').style.display = 'none';
+  $('nameInput').value = currentName;
+  $('err').textContent = '';
+  show('login');
+  setTimeout(() => $('nameInput').focus(), 50);
+}
+
+function join() {
+  const name = $('nameInput').value.trim().slice(0, 16);
+  if (!name) { $('err').textContent = 'Please type your name first.'; return; }
+  $('err').textContent = '';
+  setPlayer(name);
+  startGame();
+}
+
+// ---------- Game logic ----------
+function pickType() {
+  const L = state.luck;
+  let pr = BASE_CHANCE.r * L, pd = BASE_CHANCE.d * L, pg = BASE_CHANCE.g * L;
+  const total = pr + pd + pg;
+  if (total > 0.9) { const k = 0.9 / total; pr *= k; pd *= k; pg *= k; }
+  const r = Math.random();
+  if (r < pr) return 'r';
+  if (r < pr + pd) return 'd';
+  if (r < pr + pd + pg) return 'g';
+  return 'n';
+}
+function rollTier(luck) {
+  const ws = TIERS.map((t, i) => t.w * Math.pow(luck, i / 6));
+  const sum = ws.reduce((a, b) => a + b, 0);
+  let x = Math.random() * sum;
+  for (let i = 0; i < ws.length; i++) {
+    x -= ws[i];
+    if (x <= 0) return i;
+  }
+  return 0;
+}
+function spawnItem() {
+  const x = treeX + (Math.random() * 2 - 1) * canopyRX * 0.8;
+  const y = canopyCY + canopyRY * 0.5;
+  const roll = Math.random();
+  if (roll < EGG_CHANCE) {
+    state.mangoes.push({ x, y, type: 'e' });
+  } else if (roll < EGG_CHANCE + COLLECT_CHANCE) {
+    const tier = rollTier(state.luck);
+    const ids = TIER_IDS[tier];
+    const id = ids[Math.floor(Math.random() * ids.length)];
+    state.mangoes.push({ x, y, type: 'c', tier, id });
+  } else {
+    state.mangoes.push({ x, y, type: pickType() });
+  }
+}
+function burst(x, y, n, colors, speed, life, size) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, sp = speed * (0.5 + Math.random() * 0.5);
+    state.particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: life * (0.7 + Math.random() * 0.5), max: life, c: colors[Math.floor(Math.random() * colors.length)], size: size * (0.6 + Math.random() * 0.8) });
+  }
+}
+
+function update(dt) {
+  const s = state;
+  const level = Math.floor(s.score / 10);
+  if (level > s.level) s.level = level;
+
+  s.spawnT -= dt;
+  if (s.spawnT <= 0) {
+    spawnItem();
+    s.spawnT = Math.max(0.5, 1.1 - level * 0.05) * (0.7 + Math.random() * 0.6);
+  }
+
+  const bs = W * 1.0;
+  if (keys.l) s.bx -= bs * dt;
+  if (keys.r) s.bx += bs * dt;
+  if (targetX !== null) {
+    const d = targetX - s.bx, step = bs * dt;
+    s.bx += Math.abs(d) <= step ? d : Math.sign(d) * step;
+  }
+  s.bx = Math.max(basketW / 2, Math.min(W - basketW / 2, s.bx));
+
+  const fs = H * 0.28 * (1 + 0.14 * level);
+  for (let i = s.mangoes.length - 1; i >= 0; i--) {
+    const m = s.mangoes[i];
+    m.y += fs * dt;
+    if (m.y >= basketY - mangoR * 0.3 && m.y <= basketY + basketH && Math.abs(m.x - s.bx) <= basketW / 2) {
+      s.mangoes.splice(i, 1);
+      if (m.type === 'e') {
+        sfxPop();
+        burst(m.x, m.y, 8, ['#fff8e1', '#ffe0b2'], 120, 0.4, 2.5);
+        addToInventory('egg');
+        continue;
+      }
+      if (m.type === 'c') {
+        const T = TIERS[m.tier];
+        s.score += 2 + m.tier;
+        sfxRare();
+        burst(m.x, m.y, 30, [T.color, '#ffffff', T.color], 280, 0.9, 3.5);
+        addToInventory('mango', m.id);
+        updateHud();
+        continue;
+      }
+      s.score += MANGO_VALUE[m.type];
+      if (m.type === 'n') {
+        sfxPop();
+        burst(m.x, m.y, 6, ['#ffe082', '#ffb300'], 120, 0.35, 2);
+      } else if (m.type === 'g') {
+        sfxSparkle();
+        burst(m.x, m.y, 18, ['#fff', '#ffe066', '#fffbd1'], 220, 0.6, 3);
+      } else {
+        sfxRare();
+        const cols = m.type === 'd' ? ['#ffffff', '#8fe3ff', '#d6f6ff'] : ['#ff4d6d', '#e0115f', '#ffd6e0'];
+        burst(m.x, m.y, 26, cols, 260, 0.8, 3.5);
+      }
+      s.pile++;
+      if (s.pile >= BASKET_CAP) {
+        burst(s.bx, basketY, 14, ['#ffb300', '#ffe082'], 160, 0.5, 2.5);
+        s.pile = 0;
+      }
+      updateHud();
+    } else if (m.y >= groundY - mangoR * 0.5) {
+      s.mangoes.splice(i, 1);
+      if (m.type !== 'e') {
+        s.missed++;
+        sfxThud();
+        updateHud();
+        if (s.missed >= 3) { endGame(true); return; }
+      }
+    }
+  }
+
+  for (const p of s.particles) { p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; }
+  s.particles = s.particles.filter(p => p.life > 0);
+}
+
+// ---------- Drawing helpers ----------
+function drawCloud(x, y, sc) {
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.beginPath();
+  ctx.arc(x, y, 22 * sc, 0, Math.PI * 2);
+  ctx.arc(x + 26 * sc, y - 10 * sc, 28 * sc, 0, Math.PI * 2);
+  ctx.arc(x + 56 * sc, y, 22 * sc, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawEgg(x, y, r) {
+  ctx.save();
+  ctx.translate(x, y);
+  const g = ctx.createRadialGradient(-r * 0.3, -r * 0.3, r * 0.1, 0, 0, r * 1.2);
+  g.addColorStop(0, '#ffffff');
+  g.addColorStop(1, '#f3e3c3');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.ellipse(0, 0, r * 0.75, r * 1.0, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#c9a66b';
+  for (const [dx, dy] of [[-0.3, -0.3], [0.25, 0.1], [-0.1, 0.45]]) {
+    ctx.beginPath(); ctx.arc(dx * r, dy * r, r * 0.14, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawMango(x, y, r, type, col) {
+  ctx.save();
+  ctx.translate(x, y);
+  let c1, c2, c3, stem = '#2e7d32', glow = null;
+  if (type === 'c') { c1 = '#ffffff'; c2 = col; c3 = col; glow = col; stem = '#333'; }
+  else if (type === 'r') { c1 = '#ffb3c6'; c2 = '#e0115f'; c3 = '#7a0a2e'; glow = 'rgba(255,40,90,0.9)'; stem = '#5a0a20'; }
+  else if (type === 'd') { c1 = '#ffffff'; c2 = '#8fe3ff'; c3 = '#3a8fb8'; glow = 'rgba(150,230,255,0.95)'; stem = '#2a6f8f'; }
+  else if (type === 'g') { c1 = '#fff6a0'; c2 = '#ffd700'; c3 = '#d4a017'; glow = 'rgba(255,215,0,0.9)'; stem = '#b8860b'; }
+  else { c1 = '#ffe082'; c2 = '#ffb300'; c3 = '#e65100'; }
+  if (glow) { ctx.shadowColor = glow; ctx.shadowBlur = type === 'n' ? 0 : 16; }
+  const g = ctx.createRadialGradient(-r * 0.3, -r * 0.3, r * 0.1, 0, 0, r);
+  g.addColorStop(0, c1); g.addColorStop(0.55, c2); g.addColorStop(1, c3);
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.ellipse(0, 0, r * 0.82, r, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.shadowBlur = 0;
+  if (type === 'd' || type === 'r' || type === 'c') {
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.beginPath(); ctx.ellipse(-r * 0.3, -r * 0.35, r * 0.18, r * 0.1, -0.5, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.fillStyle = stem;
+  ctx.beginPath(); ctx.ellipse(0, -r * 0.95, r * 0.12, r * 0.2, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
+function drawBasket(x) {
+  const x0 = x - basketW / 2, y0 = basketY, w = basketW, h = basketH;
+  ctx.save();
+  ctx.fillStyle = '#8d5524';
+  ctx.beginPath();
+  ctx.moveTo(x0, y0); ctx.lineTo(x0 + w, y0);
+  ctx.lineTo(x0 + w * 0.85, y0 + h); ctx.lineTo(x0 + w * 0.15, y0 + h);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#c68642'; ctx.lineWidth = 2;
+  for (let i = 1; i <= 3; i++) {
+    const f = i / 4, yy = y0 + h * f, inset = w * 0.15 * f;
+    ctx.beginPath(); ctx.moveTo(x0 + inset, yy); ctx.lineTo(x0 + w - inset, yy); ctx.stroke();
+  }
+  ctx.fillStyle = '#a0662b';
+  ctx.fillRect(x0 - 4, y0 - 6, w + 8, 8);
+  ctx.restore();
+}
+
+function drawPile(x, pile) {
+  const x0 = x - basketW / 2;
+  const r = mangoR * 0.8;
+  const step = basketW / (BASKET_CAP + 1);
+  for (let i = 0; i < pile; i++) drawMango(x0 + step * (i + 1), basketY - r * 0.25, r, 'n');
+}
+
+function drawPalm(x, base, h, lean, frond, trunk) {
+  const tx = x + lean * h * 0.3, ty = base - h;
+  const cx = x + lean * h * 0.05, cy = base - h * 0.55;
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = trunk;
+  ctx.lineWidth = Math.max(4, h * 0.045);
+  ctx.beginPath(); ctx.moveTo(x, base); ctx.quadraticCurveTo(cx, cy, tx, ty); ctx.stroke();
+  ctx.strokeStyle = 'rgba(60,35,15,0.5)';
+  ctx.lineWidth = 1.2;
+  for (let k = 1; k <= 9; k++) {
+    const t = k / 10;
+    const bx = (1 - t) * (1 - t) * x + 2 * (1 - t) * t * cx + t * t * tx;
+    const by = (1 - t) * (1 - t) * base + 2 * (1 - t) * t * cy + t * t * ty;
+    ctx.beginPath(); ctx.moveTo(bx - h * 0.02, by); ctx.lineTo(bx + h * 0.02, by); ctx.stroke();
+  }
+  ctx.strokeStyle = frond;
+  ctx.lineWidth = Math.max(3, h * 0.03);
+  const L = h * 0.3;
+  for (let i = 0; i < 7; i++) {
+    const a = -Math.PI * (0.05 + i * 0.15);
+    const ex = tx + Math.cos(a) * L, ey = ty + Math.sin(a) * L * 0.45 + L * 0.4;
+    const qx = tx + Math.cos(a) * L * 0.5, qy = ty + Math.sin(a) * L * 0.7 - L * 0.05;
+    ctx.beginPath(); ctx.moveTo(tx, ty); ctx.quadraticCurveTo(qx, qy, ex, ey); ctx.stroke();
+  }
+  ctx.fillStyle = '#6b4423';
+  const cr = Math.max(3, h * 0.03);
+  for (const [dx, dy] of [[-cr, cr], [cr * 1.2, cr * 1.4], [0, cr * 2.4]]) {
+    ctx.beginPath(); ctx.arc(tx + dx, ty + dy, cr, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.lineCap = 'butt';
+}
+
+function drawHouse(x, base, w, h) {
+  const wallTop = base - h;
+  const over = w * 0.12;
+  const eave = wallTop + h * 0.08;
+  const ridge = wallTop - h * 0.7;
+  ctx.fillStyle = '#c9b48a';
+  ctx.fillRect(x - w * 0.04, base - h * 0.07, w * 1.08, h * 0.07);
+  ctx.fillStyle = '#f3e9d2';
+  ctx.fillRect(x, wallTop, w, h - h * 0.07);
+  ctx.fillStyle = 'rgba(120,80,40,0.12)';
+  ctx.fillRect(x, wallTop + h * 0.6, w, h * 0.04);
+  ctx.fillStyle = '#a94f2a';
+  ctx.beginPath();
+  ctx.moveTo(x - over, eave);
+  ctx.lineTo(x + w / 2, ridge);
+  ctx.lineTo(x + w + over, eave);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#6e2f15'; ctx.lineWidth = 1.5;
+  for (let k = 1; k <= 4; k++) {
+    const f = k / 5;
+    const y = eave - (eave - ridge) * f;
+    const xl = (x - over) + ((x + w / 2) - (x - over)) * f;
+    const xr = (x + w + over) - ((x + w + over) - (x + w / 2)) * f;
+    ctx.beginPath(); ctx.moveTo(xl, y); ctx.lineTo(xr, y); ctx.stroke();
+  }
+  ctx.fillStyle = '#5d3a1a';
+  ctx.fillRect(x + w * 0.42, base - h * 0.5, w * 0.16, h * 0.5 - h * 0.07);
+  for (const wx of [x + w * 0.12, x + w * 0.7]) {
+    ctx.fillStyle = '#6b4423';
+    ctx.fillRect(wx - 2, wallTop + h * 0.3 - 2, w * 0.16 + 4, h * 0.18 + 4);
+    ctx.fillStyle = '#4a6b8a';
+    ctx.fillRect(wx, wallTop + h * 0.3, w * 0.16, h * 0.18);
+  }
+}
+
+// ---------- Scene ----------
+function drawScene() {
+  const sky = ctx.createLinearGradient(0, 0, 0, groundY);
+  sky.addColorStop(0, '#2a8fd8');
+  sky.addColorStop(0.7, '#8fd3f7');
+  sky.addColorStop(1, '#d7f1ff');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, groundY);
+
+  ctx.save();
+  ctx.shadowColor = 'rgba(255,240,150,0.9)'; ctx.shadowBlur = 40;
+  ctx.fillStyle = '#fff3a0';
+  ctx.beginPath(); ctx.arc(W * 0.7, H * 0.1, Math.max(18, W * 0.06), 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+
+  for (const c of clouds) {
+    const x = ((c.cx * W + cloudOff * c.spd) % (W + 300)) - 150;
+    drawCloud(x, c.cy * H, c.s);
+  }
+
+  ctx.fillStyle = '#7fa892';
+  ctx.beginPath(); ctx.ellipse(W * 0.2, groundY - H * 0.08, W * 0.4, H * 0.14, 0, Math.PI, 0); ctx.fill();
+  ctx.fillStyle = '#4f8a5b';
+  ctx.beginPath(); ctx.ellipse(W * 0.85, groundY - H * 0.05, W * 0.45, H * 0.12, 0, Math.PI, 0); ctx.fill();
+
+  const gg = ctx.createLinearGradient(0, groundY, 0, H);
+  gg.addColorStop(0, '#66bb6a');
+  gg.addColorStop(1, '#2e7d32');
+  ctx.fillStyle = gg;
+  ctx.fillRect(0, groundY, W, H - groundY);
+
+  for (const g of grass) {
+    const x = g.gx * W;
+    ctx.fillStyle = g.c;
+    ctx.beginPath();
+    ctx.moveTo(x - 3, groundY + 4);
+    ctx.lineTo(x + g.lean, groundY - g.h);
+    ctx.lineTo(x + 3, groundY + 4);
+    ctx.fill();
+  }
+
+  drawPalm(W * 0.24, groundY, H * 0.28, 0.4, '#5f9b4d', '#8f7455');
+  drawPalm(W * 0.6, groundY, H * 0.24, -0.3, '#5f9b4d', '#8f7455');
+
+  drawHouse(W * 0.03, groundY, W * 0.2, H * 0.13);
+  drawHouse(W * 0.7, groundY, W * 0.18, H * 0.11);
+
+  ctx.strokeStyle = '#6d4c2b';
+  ctx.lineCap = 'round';
+  ctx.lineWidth = Math.max(10, W * 0.045);
+  ctx.beginPath();
+  ctx.moveTo(treeX, groundY + 6);
+  ctx.quadraticCurveTo(treeX + W * 0.02, groundY - H * 0.2, treeX - W * 0.01, canopyCY + canopyRY * 0.3);
+  ctx.stroke();
+  ctx.lineWidth = Math.max(5, W * 0.02);
+  ctx.beginPath();
+  ctx.moveTo(treeX, groundY - H * 0.2);
+  ctx.lineTo(treeX - canopyRX * 0.5, canopyCY + canopyRY * 0.4);
+  ctx.moveTo(treeX, groundY - H * 0.2);
+  ctx.lineTo(treeX + canopyRX * 0.5, canopyCY + canopyRY * 0.4);
+  ctx.stroke();
+  ctx.lineCap = 'butt';
+
+  for (const l of leaves) {
+    ctx.fillStyle = l.c;
+    ctx.beginPath();
+    ctx.arc(treeX + l.a * canopyRX, canopyCY + l.b * canopyRY, l.r * canopyRY * 1.6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  for (const f of treeFruit) {
+    drawMango(treeX + f.a * canopyRX, canopyCY + f.b * canopyRY, mangoR * 0.7, 'n');
+  }
+
+  drawPalm(W * 0.02, groundY, H * 0.5, 0.5, '#2e7d32', '#8b5a2b');
+  drawPalm(W * 0.93, groundY, H * 0.47, -0.6, '#2e7d32', '#8b5a2b');
+}
+
+function drawGame() {
+  const s = state;
+  for (const m of s.mangoes) {
+    if (m.type === 'e') drawEgg(m.x, m.y, mangoR);
+    else drawMango(m.x, m.y, mangoR, m.type, m.type === 'c' ? TIERS[m.tier].color : null);
+  }
+  drawBasket(s.bx);
+  drawPile(s.bx, s.pile);
+  for (const p of s.particles) {
+    ctx.globalAlpha = Math.max(0, p.life / p.max);
+    ctx.fillStyle = p.c;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ---------- Main loop ----------
+function frame(t) {
+  const dt = Math.min(0.05, (t - lastT) / 1000);
+  lastT = t;
+  cloudOff += dt * 12;
+  if (state && state.running && !state.paused) update(dt);
+  drawScene();
+  if (state) drawGame();
+  requestAnimationFrame(frame);
+}
+
+// ---------- Input ----------
+function isOnBasket(x, y) {
+  return Math.abs(x - state.bx) <= basketW / 2 + 20 && y >= basketY - 30 && y <= basketY + basketH + 30;
+}
+
+cv.addEventListener('pointerdown', e => {
+  if (!state || !state.running || state.paused) return;
+  if (isOnBasket(e.clientX, e.clientY)) {
+    const now = performance.now();
+    if (now - lastBasketTap < 400) { lastBasketTap = 0; openCode(); return; }
+    lastBasketTap = now;
+  }
+  dragging = true;
+  targetX = e.clientX;
+  try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+});
+cv.addEventListener('pointermove', e => { if (dragging && !state.paused) targetX = e.clientX; });
+const endDrag = () => { dragging = false; targetX = null; };
+cv.addEventListener('pointerup', endDrag);
+cv.addEventListener('pointercancel', endDrag);
+cv.addEventListener('contextmenu', e => e.preventDefault());
+
+window.addEventListener('keydown', e => {
+  if (!state || !state.running || state.paused) return;
+  if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') { keys.l = true; e.preventDefault(); }
+  if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') { keys.r = true; e.preventDefault(); }
+});
+window.addEventListener('keyup', e => {
+  if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.l = false;
+  if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.r = false;
+});
+window.addEventListener('blur', () => { keys.l = keys.r = false; endDrag(); });
+
+// ---------- Buttons ----------
+$('startBtn').onclick = () => { showLogin(); };
+$('shopIcon').onclick = () => openShop('intro');
+$('introLb').onclick = () => openBoard('intro');
+$('indexIcon').onclick = () => openIndex('intro');
+$('indexBack').onclick = () => show(indexFrom);
+$('introInv').onclick = () => { setPlayerFromLast(); openInventory('intro'); };
+$('invBtn').onclick = () => openInventory('game');
+$('invBack').onclick = closeInventory;
+$('invList').onclick = e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  if (b.dataset.egg) hatchEgg();
+  else if (b.dataset.mango) useMango(Number(b.dataset.mango));
+};
+$('joinBtn').onclick = join;
+$('nameInput').addEventListener('keydown', e => { if (e.key === 'Enter') join(); });
+$('backIntro').onclick = showIntro;
+$('againBtn').onclick = () => { if (currentKey) startGame(); };
+$('changeNameBtn').onclick = showLogin;
+$('overShop').onclick = () => openShop('over');
+$('overLbBtn').onclick = () => openBoard('over');
+$('closeBoardBtn').onclick = closeBoard;
+$('buyLuck').onclick = () => buy('luck');
+$('buyCoin').onclick = () => buy('coin');
+$('useCrown').onclick = useCrown;
+$('shopBack').onclick = () => show(shopFrom);
+$('codeSubmit').onclick = redeem;
+$('codeInput').addEventListener('keydown', e => { if (e.key === 'Enter') redeem(); });
+$('codeClose').onclick = closeCode;
+$('menuBtn').onclick = () => { if (state && state.running) endGame(false); showIntro(); };
+$('musicOn').onclick = () => setMusic(true);
+$('musicOff').onclick = () => setMusic(false);
+$('mute').onclick = () => {
+  try { ac(); } catch (e) {}
+  muted = !muted;
+  $('mute').textContent = muted ? '🔇 Sound off' : '🔊 Sound';
+};
+
+const firstTouch = () => {
+  if (musicOn) musicStart();
+  window.removeEventListener('pointerdown', firstTouch);
+  window.removeEventListener('keydown', firstTouch);
+};
+window.addEventListener('pointerdown', firstTouch);
+window.addEventListener('keydown', firstTouch);
+
+// ---------- Init ----------
+try { $('nameInput').value = localStorage.getItem(LAST) || ''; } catch (e) {}
+refreshIntro();
+resize();
+window.addEventListener('resize', resize);
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
